@@ -6,18 +6,30 @@ import {
 } from "react-native-responsive-screen";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Features from "../components/Features";
-import { dummyMessages } from "../components/constants";
+import { dummyMessages } from "../constants";
+import { Audio } from "expo-av";
 import Voice from '@react-native-community/voice'
 
+import * as Speech from 'expo-speech'
 
 export default function HomeScreen() {
   const [messages, setMessage] = useState(dummyMessages);
-  const [recording, setRecording] = useState(true);
+  const [recording, setRecording] = useState(false);
   const [speaking, setSpeaking] = useState(true)
+  const [transcription, setTranscription] = useState('');
   const clearMessages = ()=>{
     return setMessage([])
   }
-    
+  const startSpeaking = async () => {
+    try {
+      setRecording(true);
+      await Speech.speak('Hello, how can I help you?');
+    } catch (error) {
+      console.error('Error starting speech:', error);
+    } finally {
+      setRecording(false);
+    }
+  };
   const onSpeechStartHandler = e=>{
     console.log('speach start handler',e);
         
@@ -26,6 +38,7 @@ export default function HomeScreen() {
         console.log('speach end handler',e);
   }
   const onSpeechResultsHandler = e=>{
+        console.log("is the error here ");
         console.log('voice event',e);
   }
   const onSpeechErrorHandleer= e=>{
@@ -34,12 +47,30 @@ export default function HomeScreen() {
   const startRecording = async()=>{
     setRecording(true)
     try {
-        
-    } catch (error) {
-        
-    }
+       
+        const result = await Speech.startListeningAsync({
+          language: 'en-US', // Set your desired language
+          onSpeechResults: (event) => {
+            setTranscription(event.value[0]);
+          },
+        });
+        console.log(result);
+      } catch (error) {
+        console.error('Error starting recording:', error);
+      }
+    
+  }
+  const stopRecording = async()=>{
+    setRecording(false)
+    try {
+      
+        await Speech.stopListeningAsync();
+      } catch (error) {
+        console.error('Error stopping recording:', error);
+      }
   }
   useEffect(()=>{
+    Audio.requestPermissionsAsync();
     Voice.onSpeechStart = onSpeechStartHandler;
     Voice.onSpeechEnd = onSpeechEndHandler;
     Voice.onSpeechResults = onSpeechResultsHandler;
@@ -63,7 +94,7 @@ export default function HomeScreen() {
                 style={{ fontSize: wp(5) }}
                 className="text-gray-700 font-semibold ml-1"
               >
-                Assistant
+               {transcription}
               </Text>
               <View
                 style={{ height: hp(65), width: wp(90) }}
@@ -130,7 +161,7 @@ export default function HomeScreen() {
             
           } 
           {recording ? (
-            <TouchableOpacity >
+            <TouchableOpacity onPress={()=>stopRecording()}>
                 
               <Image
                 className="rounded-full"
@@ -139,7 +170,8 @@ export default function HomeScreen() {
               />
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity>
+            // start recording button
+            <TouchableOpacity onPress={()=>startRecording()}>
               <Image
                 className="rounded-full"
                 source={require("../../assets/images/recordingIcon.png")}
